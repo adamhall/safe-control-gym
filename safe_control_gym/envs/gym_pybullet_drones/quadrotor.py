@@ -17,7 +17,7 @@ from safe_control_gym.math_and_models.symbolic_systems import SymbolicModel
 from safe_control_gym.envs.gym_pybullet_drones.base_aviary import BaseAviary
 from safe_control_gym.envs.gym_pybullet_drones.quadrotor_utils import QuadType, cmd2pwm, pwm2rpm
 from safe_control_gym.math_and_models.normalization import normalize_angle
-from safe_control_gym.math_and_models.transformations import projection_matrix, transform_trajectory
+from safe_control_gym.math_and_models.transformations import projection_matrix, transform_trajectory, csRotXYZ
 
 class Quadrotor(BaseAviary):
     """1D and 2D quadrotor environment task.
@@ -513,9 +513,89 @@ class Quadrotor(BaseAviary):
             # Define observation.
             Y = cs.vertcat(x, x_dot, z, z_dot, theta, theta_dot)
         elif self.QUAD_TYPE == QuadType.THREE_D:
-            self.symbolic = None
-            print('\n\n\nTODO: 3D QUADROTOR SYMBOLIC DYNAMICS\n\n')
-            return 
+            nx, nu = 12, 4
+            Ixx = self.J[0, 0]
+            Izz = self.J[2, 2]
+            J = cs.blockcat([[Ixx, 0.0, 0.0],
+                             [0.0, Iyy, 0.0],
+                             [0.0, 0.0, Izz]])
+            Jinv = cs.blockcat([[1.0/Ixx, 0.0, 0.0],
+                                [0.0, 1.0/Iyy, 0.0],
+                                [0.0, 0.0, 1.0/Izz]])
+            gamma = self.KM/self.KF
+            x = cs.MX.sym('x')
+            y = cs.MX.sym('y')
+            phi = cs.MX.sym('phi')  # Roll
+            theta = cs.MX.sym('theta')  # Pitch
+            psi = cs.MX.sym('psi')  # Yaw
+            x_dot = cs.MX.sym('x_dot')
+            y_dot = cs.MX.sym('y_dot')
+            p = cs.MX.sym('p')  # Body frame roll rate
+            q = cs.MX.sym('q')  # body frame pith rate
+            r = cs.MX.sym('r')  # body frame yaw rate
+
+            # Define state variable
+            # X = cs.vertcat(x, y, z, phi, theta, psi, x_dot, y_dot, z_dot, p, q, r)
+            X = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
+
+            # Defone inputs.
+            f1 = cs.MX.sym('f1')
+            f2 = cs.MX.sym('f2')
+            f3 = cs.MX.sym('f3')
+            f4 = cs.MX.sym('f4')
+            U = cs.vertcat(f1, f2, f3, f4)
+
+            # Defining the dynamics function.
+            #pos_dot = cs.vertcat(x_dot, y_dot, z_dot)
+            ## Using equation 16.4, but using the inverse of the matrix (computed using matlab)
+            ##ang_dot = cs.blockcat([[cs.cos(theta), 0, cs.sin(theta)],
+            ##                       [cs.sin(phi) * cs.sin(theta) / cs.cos(phi), 1, -cs.cos(theta) * cs.sin(phi) / cs.cos(phi)],
+            ##                       [-cs.sin(theta) / cs.cos(phi), 0, cs.cos(theta) / cs.cos(phi)]]) @ cs.vertcat(p, q, r)
+            ##ang_dot = cs.blockcat([[1, -cs.sin(phi)*cs.tan(theta), -cs.cos(phi)*cs.tan(theta)],
+            ##                       [0, cs.cos(phi), -cs.sin(phi)],
+            ##                       [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
+            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(theta), -cs.sin(phi)*cs.sin(theta), -cs.cos(phi)*cs.sin(theta)],
+            #                                         [0, cs.cos(phi)*cs.cos(theta), -cs.sin(phi)*cs.cos(theta)],
+            #                                         [0, cs.sin(phi), cs.cos(phi)]]) @ cs.vertcat(p, q, r)
+            ## Derived from equation 16.7, but to isolate for (p,q,r) and using fat that inertia matrix is invertible and diagonal.
+            #rate_dot = cs.vertcat(l / Ixx * (f2 - f4) - (Izz - Iyy) / Ixx * r * q,
+            #                      l / Iyy * (f3 - f1) - (Ixx - Izz) / Iyy * p * r,
+            #                      gamma / Izz * (-f1 + f2 - f3 + f4) - (Iyy - Ixx) / Izz * p * q)
+            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(cs.cos(psi) * cs.sin(theta) + cs.cos(theta) * cs.sin(phi) * cs.sin(psi),
+            ##                                                                       cs.sin(psi) * cs.sin(theta) - cs.cos(psi) * cs.cos(theta) * cs.sin(phi),
+            ##                                                                       cs.cos(phi) * cs.cos(theta))
+            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(cs.sin(phi)*cs.sin(psi) + cs.cos(phi)*cs.cos(psi)*cs.sin(theta),
+            ##                                                                      -cs.cos(psi)*cs.sin(phi) + cs.cos(phi)*cs.sin(psi)*cs.sin(theta),
+            ##                                                                      cs.cos(phi)*cs.cos(theta))
+            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(-cs.sin(theta),
+            ##                                                                      cs.sin(psi)*cs.cos(theta),
+            ##                                                                      cs.cos(psi)*cs.cos(theta))
+            #R_WB = csRotXYZ(phi, theta, psi) # rotation matrix transforming the world frame into the body frame
+            #pos_ddot = cs.vertcat(0, 0, -g) + R_WB @ cs.vertcat(0, 0, (f1 + f2 + f3 + f4) / m)
+            #X_dot = cs.vertcat(pos_dot[0], pos_ddot[0], pos_dot[1], pos_ddot[1], pos_dot[2], pos_ddot[2], ang_dot, rate_dot)
+            #Y = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
+
+            # Following Carlo's Thesis.
+            # x_dot, y_dot, z_dot are the CG linear velocities expressed in body frame w.r.t. the inertial frame.
+            Rob = csRotXYZ(phi, theta, psi) # rotation matrix transforming a vector in the body frame to the world frame.
+            Rbo = Rob.T
+            #bVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - Rbo @ cs.vertcat(0, 0, g) - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
+            #pos_ddot = bVdot_cg_o
+            #pos_dot =  Rbo @ cs.vertcat(x_dot, y_dot, z_dot)
+            #oVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - Rbo @ cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
+            oVdot_cg_o = Rob @ cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
+            pos_ddot = oVdot_cg_o
+            pos_dot =  cs.vertcat(x_dot, y_dot, z_dot)
+            Mb = cs.vertcat(l/cs.sqrt(2.0)*(f1+f2-f3-f4),
+                            l/cs.sqrt(2.0)*(-f1+f2+f3-f4),
+                            gamma*(-f1+f2-f3+f4))
+            rate_dot = Jinv @ (Mb - (cs.skew(cs.vertcat(p,q,r)) @ (J @ cs.vertcat(p,q,r))))
+            #ang_dot = cs.blockcat([[1, cs.sin(phi)*cs.tan(theta), cs.cos(phi)*cs.tan(theta)],
+            #                       [0, cs.cos(phi), -cs.sin(phi)],
+            #                       [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
+
+            X_dot = cs.vertcat(pos_dot[0], pos_ddot[0], pos_dot[1], pos_ddot[1], pos_dot[2], pos_ddot[2], ang_dot, rate_dot)
+            Y = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
         # Define cost (quadratic form).
         Q = cs.MX.sym('Q', nx, nx)
         R = cs.MX.sym('R', nu, nu)
@@ -701,9 +781,17 @@ class Quadrotor(BaseAviary):
                 [pos[0], vel[0], pos[2], vel[2], rpy[1], ang_v[1]]
             ).reshape((6,))
         elif self.QUAD_TYPE == QuadType.THREE_D:
+
+            R = np.array(p.getMatrixFromQuaternion(self.quat[0])).reshape((3,3)).T
+            ang_v_body_frame = R @ ang_v
+            #phi = np.arctan(-R[0,1]/R[1,1])
+            #theta = np.arctan(R[2,1]/np.sqrt(1-R[2,1]**2))
+            #psi = np.arctan(-R[2,0]/R[2,2])
+            #rpy = np.array([phi, theta, psi])
             # {x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r}.
             self.state = np.hstack(
                 [pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v]  # TODO ang_v is NOT pqr
+                #[pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v_body_frame]  # TODO ang_v is NOT pqr
             ).reshape((12,))
         # if not np.array_equal(self.state,
         #                       np.clip(self.state, self.observation_space.low, self.observation_space.high)):

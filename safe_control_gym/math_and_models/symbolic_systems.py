@@ -22,7 +22,7 @@ class SymbolicModel():
                  dynamics,
                  cost,
                  dt=1e-3,
-                 integration_algo='cvodes',
+                 integration_algo='rk',
                  funcs=None):
         """
 

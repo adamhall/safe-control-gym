@@ -238,8 +238,8 @@ class BaseAviary(BenchmarkEnv):
         p.setAdditionalSearchPath(pybullet_data.getDataPath(),
                                   physicsClientId=self.PYB_CLIENT)
         # Load ground plane, drone and obstacles models.
-        self.PLANE_ID = p.loadURDF("plane.urdf", [0, 0, self.GROUND_PLANE_Z],
-                                   physicsClientId=self.PYB_CLIENT)
+        #self.PLANE_ID = p.loadURDF("plane.urdf", [0, 0, self.GROUND_PLANE_Z],
+        #                           physicsClientId=self.PYB_CLIENT)
         self.DRONE_IDS = np.array([
             p.loadURDF(self.URDF_PATH,
                        self.INIT_XYZS[i, :],
