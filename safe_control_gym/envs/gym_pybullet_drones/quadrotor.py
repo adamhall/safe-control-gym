@@ -533,9 +533,9 @@ class Quadrotor(BaseAviary):
             p = cs.MX.sym('p')  # Body frame roll rate
             q = cs.MX.sym('q')  # body frame pith rate
             r = cs.MX.sym('r')  # body frame yaw rate
-
+            Rob = csRotXYZ(phi, theta, psi) # rotation matrix transforming a vector in the body frame to the world frame.
+            Rbo = Rob.T
             # Define state variable
-            # X = cs.vertcat(x, y, z, phi, theta, psi, x_dot, y_dot, z_dot, p, q, r)
             X = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
 
             # Defone inputs.
@@ -546,55 +546,46 @@ class Quadrotor(BaseAviary):
             U = cs.vertcat(f1, f2, f3, f4)
 
             # Defining the dynamics function.
-            #pos_dot = cs.vertcat(x_dot, y_dot, z_dot)
-            ## Using equation 16.4, but using the inverse of the matrix (computed using matlab)
-            ##ang_dot = cs.blockcat([[cs.cos(theta), 0, cs.sin(theta)],
-            ##                       [cs.sin(phi) * cs.sin(theta) / cs.cos(phi), 1, -cs.cos(theta) * cs.sin(phi) / cs.cos(phi)],
-            ##                       [-cs.sin(theta) / cs.cos(phi), 0, cs.cos(theta) / cs.cos(phi)]]) @ cs.vertcat(p, q, r)
-            ##ang_dot = cs.blockcat([[1, -cs.sin(phi)*cs.tan(theta), -cs.cos(phi)*cs.tan(theta)],
-            ##                       [0, cs.cos(phi), -cs.sin(phi)],
-            ##                       [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
-            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(theta), -cs.sin(phi)*cs.sin(theta), -cs.cos(phi)*cs.sin(theta)],
-            #                                         [0, cs.cos(phi)*cs.cos(theta), -cs.sin(phi)*cs.cos(theta)],
-            #                                         [0, cs.sin(phi), cs.cos(phi)]]) @ cs.vertcat(p, q, r)
-            ## Derived from equation 16.7, but to isolate for (p,q,r) and using fat that inertia matrix is invertible and diagonal.
-            #rate_dot = cs.vertcat(l / Ixx * (f2 - f4) - (Izz - Iyy) / Ixx * r * q,
-            #                      l / Iyy * (f3 - f1) - (Ixx - Izz) / Iyy * p * r,
-            #                      gamma / Izz * (-f1 + f2 - f3 + f4) - (Iyy - Ixx) / Izz * p * q)
-            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(cs.cos(psi) * cs.sin(theta) + cs.cos(theta) * cs.sin(phi) * cs.sin(psi),
-            ##                                                                       cs.sin(psi) * cs.sin(theta) - cs.cos(psi) * cs.cos(theta) * cs.sin(phi),
-            ##                                                                       cs.cos(phi) * cs.cos(theta))
-            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(cs.sin(phi)*cs.sin(psi) + cs.cos(phi)*cs.cos(psi)*cs.sin(theta),
-            ##                                                                      -cs.cos(psi)*cs.sin(phi) + cs.cos(phi)*cs.sin(psi)*cs.sin(theta),
-            ##                                                                      cs.cos(phi)*cs.cos(theta))
-            ##pos_ddot = cs.vertcat(0, 0, -g) + (f1 + f2 + f3 + f4) / m * cs.vertcat(-cs.sin(theta),
-            ##                                                                      cs.sin(psi)*cs.cos(theta),
-            ##                                                                      cs.cos(psi)*cs.cos(theta))
-            #R_WB = csRotXYZ(phi, theta, psi) # rotation matrix transforming the world frame into the body frame
-            #pos_ddot = cs.vertcat(0, 0, -g) + R_WB @ cs.vertcat(0, 0, (f1 + f2 + f3 + f4) / m)
-            #X_dot = cs.vertcat(pos_dot[0], pos_ddot[0], pos_dot[1], pos_ddot[1], pos_dot[2], pos_ddot[2], ang_dot, rate_dot)
-            #Y = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
-
-            # Following Carlo's Thesis.
-            # x_dot, y_dot, z_dot are the CG linear velocities expressed in body frame w.r.t. the inertial frame.
-            Rob = csRotXYZ(phi, theta, psi) # rotation matrix transforming a vector in the body frame to the world frame.
-            Rbo = Rob.T
-            #bVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - Rbo @ cs.vertcat(0, 0, g) - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
-            #pos_ddot = bVdot_cg_o
-            #pos_dot =  Rbo @ cs.vertcat(x_dot, y_dot, z_dot)
-            #oVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - Rbo @ cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
             oVdot_cg_o = Rob @ cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
+            #oVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
             pos_ddot = oVdot_cg_o
-            pos_dot =  cs.vertcat(x_dot, y_dot, z_dot)
+            pos_dot = cs.vertcat(x_dot, y_dot, z_dot)
+
             Mb = cs.vertcat(l/cs.sqrt(2.0)*(f1+f2-f3-f4),
                             l/cs.sqrt(2.0)*(-f1+f2+f3-f4),
                             gamma*(-f1+f2-f3+f4))
-            rate_dot = Jinv @ (Mb - (cs.skew(cs.vertcat(p,q,r)) @ (J @ cs.vertcat(p,q,r))))
-            #ang_dot = cs.blockcat([[1, cs.sin(phi)*cs.tan(theta), cs.cos(phi)*cs.tan(theta)],
-            #                       [0, cs.cos(phi), -cs.sin(phi)],
-            #                       [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
+            rate_dot = Jinv @ (Mb - (cs.skew(cs.vertcat(p,q,r)) @ J @ cs.vertcat(p,q,r)))
+            # Euler 3-2-1 (Z-Y-X) from Schaud and Junkins
+            #ang_dot = 1/cs.cos(theta)*cs.blockcat([[0, cs.sin(psi), cs.cos(psi)],
+            #                                       [0, cs.cos(theta)*cs.cos(psi), -cs.cos(theta)*cs.sin(psi)],
+            #                                       [cs.cos(theta), cs.sin(theta)*cs.sin(psi), cs.sin(theta)*cs.cos(psi)]]) @ cs.vertcat(p,q,r)
+            #ang_dot = 1/cs.cos(theta)*cs.blockcat([[0, -cs.sin(psi), cs.cos(psi)],
+            #                                       [0, cs.cos(theta)*cs.cos(psi), -cs.cos(theta)*cs.sin(psi)],
+            #                                       [cs.cos(theta), -cs.sin(theta)*cs.sin(psi), -cs.sin(theta)*cs.cos(psi)]]) @ cs.vertcat(p,q,r)
+            # Euler 1-2-3 from Schuab and junkins
+            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), -cs.sin(psi), 0],
+            #                                         [cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
+            #                                         [-cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
+            # Euler 1-2-3 from Schuab and junkins using negative angles
+            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), cs.sin(psi), 0],
+            #                                         [-cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
+            #                                         [cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
+            # Euler 1-2-3 self derived using SDFormat
+            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), cs.sin(psi), 0],
+            #                                         [-cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
+            #                                         [cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
+            # Euler 3-2-1 self derived using SDFormat
+            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(theta), cs.sin(psi)*cs.sin(theta), -cs.cos(phi)*cs.sin(theta)],
+            #                                         [0, cs.cos(phi)*cs.cos(theta), cs.sin(phi)*cs.cos(theta)],
+            #                                         [0, -cs.sin(phi), cs.cos(phi)]]) @ cs.vertcat(p,q,r)
+            # From Carlo's thesis (which uses Z-Y-X intrinsic euler angles)
+            ang_dot = cs.blockcat([[1, cs.sin(phi)*cs.tan(theta), cs.cos(phi)*cs.tan(theta)],
+                                   [0, cs.cos(phi), -cs.sin(phi)],
+                                   [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
 
+            #ang_dot = cs.vertcat(p,q,r)
             X_dot = cs.vertcat(pos_dot[0], pos_ddot[0], pos_dot[1], pos_ddot[1], pos_dot[2], pos_ddot[2], ang_dot, rate_dot)
+
             Y = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
         # Define cost (quadratic form).
         Q = cs.MX.sym('Q', nx, nx)
@@ -782,8 +773,10 @@ class Quadrotor(BaseAviary):
             ).reshape((6,))
         elif self.QUAD_TYPE == QuadType.THREE_D:
 
-            R = np.array(p.getMatrixFromQuaternion(self.quat[0])).reshape((3,3)).T
-            ang_v_body_frame = R @ ang_v
+            Rob = np.array(p.getMatrixFromQuaternion(self.quat[0])).reshape((3,3)).T
+            Rbo = Rob.T
+            ang_v_body_frame = Rbo @ ang_v
+            #Rob = csRotXYZ(phi, theta, psi)
             #phi = np.arctan(-R[0,1]/R[1,1])
             #theta = np.arctan(R[2,1]/np.sqrt(1-R[2,1]**2))
             #psi = np.arctan(-R[2,0]/R[2,2])

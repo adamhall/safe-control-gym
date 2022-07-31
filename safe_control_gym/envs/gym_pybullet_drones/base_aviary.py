@@ -244,10 +244,12 @@ class BaseAviary(BenchmarkEnv):
             p.loadURDF(self.URDF_PATH,
                        self.INIT_XYZS[i, :],
                        p.getQuaternionFromEuler(self.INIT_RPYS[i, :]),
-                       # flags = p.URDF_USE_INERTIA_FROM_FILE,
+                       flags = p.URDF_USE_INERTIA_FROM_FILE,
                        physicsClientId=self.PYB_CLIENT)
             for i in range(self.NUM_DRONES)
         ])
+        for i in range(self.NUM_DRONES):
+            p.changeDynamics(self.DRONE_IDS[i], -1, linearDamping=0, angularDamping=0)
         # Update and store the drones kinematic information.
         self._update_and_store_kinematic_information()
         # Start video recording.
@@ -412,6 +414,7 @@ class BaseAviary(BenchmarkEnv):
 
         """
         forces = np.array(rpm**2) * self.KF
+        self.forces = forces # ToDo: For debugging
         torques = np.array(rpm**2) * self.KM
         z_torque = (-torques[0] + torques[1] - torques[2] + torques[3])
         for i in range(4):

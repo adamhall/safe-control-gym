@@ -64,9 +64,8 @@ for i in range(ITERATIONS):
                     cur_quat=np.array(p.getQuaternionFromEuler([obs[6],obs[7],obs[8]])),
                     cur_vel=np.array([obs[1],obs[3],obs[5]]),
                     cur_ang_vel=np.array([obs[9],obs[10],obs[11]]),
-                    #target_pos=np.array([0.1, 0.1, 0.5]),
-                    target_pos=np.array([0.1, 0.1, 0.1]),
-                    target_rpy=np.array([0.0, 0.0, np.pi/2.0])
+                    target_pos=np.array([0.5, 0.5, 0.0]),
+                    target_rpy=np.array([0.0, 0.0, 0.0])
         )
         action = rpms
         action = env.KF * action**2
@@ -76,6 +75,7 @@ for i in range(ITERATIONS):
     else:
         obs_sym = env.symbolic.fd_func(x0=obs_sym, p=action)['xf'].toarray()[:,0]
         #obs_sym = env.symbolic.fd_func(x0=obs, p=action)['xf'].toarray()[:, 0]
+    #obs_sym[6:] = obs[6:]
     all_obs_sym[:, i+1] = obs_sym
     obs, reward, done, info = env.step(action)
     all_obs[:, i+1] = obs
@@ -125,4 +125,6 @@ for i in range(env.state_dim):
     #ax.set_ylabel('counts')
     #ax.set_title(f'{env.STATE_LABELS[i]} Error')
     plt.show()
-p.getMatrixFromQuaternion(q)
+
+for i in range(env.state_dim):
+    print(f'{env.STATE_LABELS[i]} Final Integration error: {abs_diff[i, -1]}')
