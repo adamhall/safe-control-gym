@@ -182,6 +182,17 @@ def csRotXYZ(phi, theta, psi):
     return R
 
 def RotXYZ(phi, theta,psi):
+    """Rotation matrix from euller angles  following SDFormat http://sdformat.org/tutorials?tut=specify_pose&cat=specification&.
+    This represents the extrinsic X-Y-Z (or quivalently the intrinsic Z-Y-X (3-2-1)) euler angle rotation.
+
+    Args:
+      phi: roll (or rotation about X).
+      theta: pitch (or rotation about Y).
+      psi: yaw (or rotation about Z).
+
+    Returns:
+      R: casadi Rotation matrix
+    """
     R = csRotXYZ(phi, theta, psi).toarray()
     return R
 

@@ -533,8 +533,9 @@ class Quadrotor(BaseAviary):
             p = cs.MX.sym('p')  # Body frame roll rate
             q = cs.MX.sym('q')  # body frame pith rate
             r = cs.MX.sym('r')  # body frame yaw rate
-            Rob = csRotXYZ(phi, theta, psi) # rotation matrix transforming a vector in the body frame to the world frame.
-            Rbo = Rob.T
+            # Pybullet euler angles use the SDFormat for rotation matrices.
+            Rob = csRotXYZ(phi, theta, psi)  # rotation matrix transforming a vector in the body frame to the world frame.
+
             # Define state variable
             X = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
 
@@ -545,45 +546,22 @@ class Quadrotor(BaseAviary):
             f4 = cs.MX.sym('f4')
             U = cs.vertcat(f1, f2, f3, f4)
 
+            # From Ch. 2 of Luis, Carlos, and Jérôme Le Ny. "Design of a trajectory tracking controller for a
+            # nanoquadcopter." arXiv preprint arXiv:1608.05786 (2016).
+
             # Defining the dynamics function.
-            oVdot_cg_o = Rob @ cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
-            #oVdot_cg_o = cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)# - cs.skew(cs.vertcat(p,q,r)) @ cs.vertcat(x_dot, y_dot, z_dot)
+            # We are using the velocity of the base wrt to the world frame expressed in the world frame. Note that
+            # the reference expresses this in the body frame.
+            oVdot_cg_o = Rob @ cs.vertcat(0, 0, f1+f2+f3+f4)/m - cs.vertcat(0, 0, g)
             pos_ddot = oVdot_cg_o
             pos_dot = cs.vertcat(x_dot, y_dot, z_dot)
-
             Mb = cs.vertcat(l/cs.sqrt(2.0)*(f1+f2-f3-f4),
                             l/cs.sqrt(2.0)*(-f1+f2+f3-f4),
                             gamma*(-f1+f2-f3+f4))
             rate_dot = Jinv @ (Mb - (cs.skew(cs.vertcat(p,q,r)) @ J @ cs.vertcat(p,q,r)))
-            # Euler 3-2-1 (Z-Y-X) from Schaud and Junkins
-            #ang_dot = 1/cs.cos(theta)*cs.blockcat([[0, cs.sin(psi), cs.cos(psi)],
-            #                                       [0, cs.cos(theta)*cs.cos(psi), -cs.cos(theta)*cs.sin(psi)],
-            #                                       [cs.cos(theta), cs.sin(theta)*cs.sin(psi), cs.sin(theta)*cs.cos(psi)]]) @ cs.vertcat(p,q,r)
-            #ang_dot = 1/cs.cos(theta)*cs.blockcat([[0, -cs.sin(psi), cs.cos(psi)],
-            #                                       [0, cs.cos(theta)*cs.cos(psi), -cs.cos(theta)*cs.sin(psi)],
-            #                                       [cs.cos(theta), -cs.sin(theta)*cs.sin(psi), -cs.sin(theta)*cs.cos(psi)]]) @ cs.vertcat(p,q,r)
-            # Euler 1-2-3 from Schuab and junkins
-            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), -cs.sin(psi), 0],
-            #                                         [cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
-            #                                         [-cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
-            # Euler 1-2-3 from Schuab and junkins using negative angles
-            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), cs.sin(psi), 0],
-            #                                         [-cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
-            #                                         [cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
-            # Euler 1-2-3 self derived using SDFormat
-            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(psi), cs.sin(psi), 0],
-            #                                         [-cs.cos(theta)*cs.sin(psi), cs.cos(theta)*cs.cos(psi), 0],
-            #                                         [cs.sin(theta)*cs.cos(psi), cs.sin(theta)*cs.sin(psi), cs.cos(theta)]]) @ cs.vertcat(p,q,r)
-            # Euler 3-2-1 self derived using SDFormat
-            #ang_dot = 1.0/cs.cos(theta)*cs.blockcat([[cs.cos(theta), cs.sin(psi)*cs.sin(theta), -cs.cos(phi)*cs.sin(theta)],
-            #                                         [0, cs.cos(phi)*cs.cos(theta), cs.sin(phi)*cs.cos(theta)],
-            #                                         [0, -cs.sin(phi), cs.cos(phi)]]) @ cs.vertcat(p,q,r)
-            # From Carlo's thesis (which uses Z-Y-X intrinsic euler angles)
             ang_dot = cs.blockcat([[1, cs.sin(phi)*cs.tan(theta), cs.cos(phi)*cs.tan(theta)],
                                    [0, cs.cos(phi), -cs.sin(phi)],
                                    [0, cs.sin(phi)/cs.cos(theta), cs.cos(phi)/cs.cos(theta)]]) @ cs.vertcat(p, q, r)
-
-            #ang_dot = cs.vertcat(p,q,r)
             X_dot = cs.vertcat(pos_dot[0], pos_ddot[0], pos_dot[1], pos_ddot[1], pos_dot[2], pos_ddot[2], ang_dot, rate_dot)
 
             Y = cs.vertcat(x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r)
@@ -773,18 +751,13 @@ class Quadrotor(BaseAviary):
             ).reshape((6,))
         elif self.QUAD_TYPE == QuadType.THREE_D:
 
-            Rob = np.array(p.getMatrixFromQuaternion(self.quat[0])).reshape((3,3)).T
+            Rob = np.array(p.getMatrixFromQuaternion(self.quat[0])).reshape((3,3))
             Rbo = Rob.T
             ang_v_body_frame = Rbo @ ang_v
-            #Rob = csRotXYZ(phi, theta, psi)
-            #phi = np.arctan(-R[0,1]/R[1,1])
-            #theta = np.arctan(R[2,1]/np.sqrt(1-R[2,1]**2))
-            #psi = np.arctan(-R[2,0]/R[2,2])
-            #rpy = np.array([phi, theta, psi])
             # {x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p, q, r}.
             self.state = np.hstack(
-                [pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v]  # TODO ang_v is NOT pqr
-                #[pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v_body_frame]  # TODO ang_v is NOT pqr
+                #[pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v]  # TODO ang_v is NOT pqr
+                [pos[0], vel[0], pos[1], vel[1], pos[2], vel[2], rpy, ang_v_body_frame]  # TODO ang_v is NOT pqr
             ).reshape((12,))
         # if not np.array_equal(self.state,
         #                       np.clip(self.state, self.observation_space.low, self.observation_space.high)):
