@@ -150,8 +150,9 @@ class BaseAviary(BenchmarkEnv):
         self.PYB_CLIENT = -1
         if gui:
             # With debug GUI.
-            self.PYB_CLIENT = p.connect(p.GUI)  # p.connect(p.GUI, options="--opengl2")
-            p.resetDebugVisualizerCamera(cameraDistance=3,
+            self.PYB_CLIENT = p.connect(p.GUI,
+                                        options='--width=2800 --height=1200')  # p.connect(p.GUI, options="--opengl2")
+            p.resetDebugVisualizerCamera(cameraDistance=1.7,
                                          cameraYaw=-30,
                                          cameraPitch=-30,
                                          cameraTargetPosition=[0, 0, 0],

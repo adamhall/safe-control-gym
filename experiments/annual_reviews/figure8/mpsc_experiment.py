@@ -23,8 +23,8 @@ def main():
                        config.task,
                        **config.task_config)
     # Create controller from PPO YAML.
-    ppo_config_dir = os.path.dirname(os.path.abspath(__file__))+'/config_overrides'
-    ppo_dict = read_file(os.path.join(ppo_config_dir,'unsafe_ppo_config.yaml'))
+    ppo_config_dir = os.path.dirname(os.path.abspath(__file__))+'/data'
+    ppo_dict = read_file(os.path.join(ppo_config_dir,'config.yaml'))
     ppo_config = munchify(ppo_dict)
     # Setup PPO controller.
     ppo_ctrl = make(ppo_config.algo,
