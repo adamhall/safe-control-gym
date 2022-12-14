@@ -33,6 +33,7 @@ class LinearMPC(MPC):
             terminate_run_on_done=True,
             constraint_tol: float=1e-8,
             solver: str='sqpmethod',
+            ref_mode: str = 'last_state',
             # runner args
             # shared/base args
             output_dir="results/temp",
@@ -68,6 +69,7 @@ class LinearMPC(MPC):
             soft_constraints=soft_constraints,
             terminate_run_on_done=terminate_run_on_done,
             constraint_tol=constraint_tol,
+            ref_mode=ref_mode,
             #prior_info=prior_info,
             output_dir=output_dir,
             additional_constraints=additional_constraints,
@@ -258,6 +260,10 @@ class LinearMPC(MPC):
         if self.env.TASK == Task.TRAJ_TRACKING:
             self.traj_step += 1
         if self.warmstart and self.u_prev is not None and self.x_prev is not None:
+            x_guess, u_guess = self.compute_initial_guess(obs, goal_states, self.X_EQ, self.U_EQ)
+            opti.set_initial(x_var, x_guess)
+            opti.set_initial(u_var, u_guess)
+        elif self.warmstart and self.u_prev is not None and self.x_prev is not None:
             opti.set_initial(x_var, self.x_prev)
             opti.set_initial(u_var, self.u_prev)
         # Solve the optimization problem.

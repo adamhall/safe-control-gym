@@ -27,6 +27,7 @@ class MPC(BaseController):
             soft_constraints: bool = False,
             terminate_run_on_done: bool = True,
             constraint_tol: float = 1e-6,
+            ref_mode: str = 'last_state',
             # runner args
             # shared/base args
             output_dir: str = "results/temp",
@@ -328,8 +329,13 @@ class MPC(BaseController):
         if self.env.TASK == Task.STABILIZATION:
             # Repeat goal state for horizon steps.
             goal_states = np.tile(self.env.X_GOAL.reshape(-1, 1), (1, self.T + 1))
-        elif self.env.TASK == Task.TRAJ_TRACKING:
+        elif self.env.TASK == Task.TRAJ_TRACKING and self.ref_mode == 'wrap':
             # Slice trajectory for horizon steps, if not long enough, repeat last state.
+            start = self.traj_step
+            end = self.traj_step + self.T + 1
+            inds = range(start,end)
+            goal_states = np.take(self.traj, inds, mode='wrap', axis=1)
+        elif self.env.TASK == Task.TRAJ_TRACKING and self.ref_mode == 'repeat':
             start = min(self.traj_step, self.traj.shape[-1])
             end = min(self.traj_step + self.T + 1, self.traj.shape[-1])
             remain = max(0, self.T + 1 - (end - start))
