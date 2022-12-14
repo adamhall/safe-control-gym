@@ -36,7 +36,7 @@ algo_config:
   overwrite_saved_data: false
   prior_info:
     prior_prop: # values multiplied by prior_param_coeff inside gpmpc
-      M: 0.027 # 75% is 0.02025 100% is 0.027, 150% is 0.0405 300% 0.081,
+      M: 0.0205 # 75% is 0.02025 100% is 0.027, 150% is 0.0405 300% 0.081,
       Iyy: 1.4e-05
   prior_param_coeff: 1.0
   prob: 0.99
@@ -82,7 +82,7 @@ rand_kernel_selection: true
 output_dir: temp-data
 restore: null
 seed: 42
-tag: quad_impossible_traj_10hz
+tag: gpmpc-comparison
 task_config:
   constraints:
     - constraint_form: default_constraint
@@ -99,7 +99,7 @@ task_config:
       lower_bounds:
       - -0.55
       - -100
-      - -0.01
+      - -0.10
       - -100
       - -3
       - -10
@@ -122,8 +122,8 @@ task_config:
     init_theta: 0.0
     init_theta_dot: 0.0
     init_x: 0.00
-    init_x_dot: 0.0
-    init_z: 0.01
+    init_x_dot: -0.6278392
+    init_z: 0.0
     init_z_dot: 0.0
   init_state_randomization_info: null
   normalized_rl_action_space: false

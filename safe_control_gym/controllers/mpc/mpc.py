@@ -27,7 +27,7 @@ class MPC(BaseController):
             soft_constraints: bool = False,
             terminate_run_on_done: bool = True,
             constraint_tol: float = 1e-6,
-            ref_mode: str = 'last_state',
+            ref_mode: str = 'repeat',
             # runner args
             # shared/base args
             output_dir: str = "results/temp",

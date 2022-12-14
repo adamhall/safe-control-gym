@@ -32,8 +32,8 @@ class LinearMPC(MPC):
             soft_constraints=False,
             terminate_run_on_done=True,
             constraint_tol: float=1e-8,
-            solver: str='sqpmethod',
-            ref_mode: str = 'last_state',
+            solver: str = 'qrqp',
+            ref_mode: str = 'repeat',
             # runner args
             # shared/base args
             output_dir="results/temp",
