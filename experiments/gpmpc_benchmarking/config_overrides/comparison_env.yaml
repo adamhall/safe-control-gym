@@ -1,0 +1,62 @@
+seed: 42
+task_config:
+  constraints:
+    - constraint_form: default_constraint
+      constrained_variable: input
+    - constraint_form: default_constraint
+      constrained_variable: state
+      upper_bounds:
+      - 0.55
+      - 100
+      - 1.05
+      - 100
+      - 3
+      - 10
+      lower_bounds:
+      - -0.55
+      - -100
+      - -0.10
+      - -100
+      - -3
+      - -10
+  cost: quadratic
+  ctrl_freq: 50
+  disturbances:
+    observation:
+      - disturbance_func: white_noise
+        std: 0.0005
+  done_on_out_of_bound: true
+  done_on_violation: false
+  episode_len_sec: 5
+  gui: false
+  inertial_prop:
+  - 0.027
+  - 1.4e-05
+  inertial_prop_randomization_info: null
+  info_in_reset: false
+  # init state taken from NMPC solution
+  init_state:
+    init_theta: 0.0
+    init_theta_dot: 0.0
+    init_x: 0.00
+    init_x_dot: -0.6278392
+    init_z: 0.0
+    init_z_dot: 0.0
+  init_state_randomization_info: null
+  normalized_rl_action_space: false
+  physics: pyb
+  pyb_freq: 1000
+  quad_type: 2
+  randomized_inertial_prop: false
+  randomized_init: false
+  stab_goal_tol: 0.01
+  task: traj_tracking
+  task_info:
+    num_cycles: 1
+    trajectory_plane: zx
+    trajectory_position_offset:
+    - 0.5
+    - 0.0
+    trajectory_scale: -0.5
+    trajectory_type: circle
+  verbose: false
