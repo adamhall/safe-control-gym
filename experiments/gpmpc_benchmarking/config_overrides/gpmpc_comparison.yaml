@@ -50,6 +50,8 @@ algo_config:
   r_mpc:
   - 0.1
   - 0.1
+  ref_mode: wrap
+  solver: ipopt
   sparse_gp: true
   n_ind_points: 30
   inducing_point_selection_method: 'kmeans' # 'random'
@@ -68,13 +70,13 @@ algo_config:
   - 5
   train_iterations: null
   test_data_ratio: 0.25
-  use_gpu: true
+  use_gpu: false
   use_prev_start: true
   warmstart: true
 device: cpu
-num_epochs: 5
+num_epochs: 2
 num_samples: 45
-num_test_episodes_per_epoch: 1
+num_test_episodes_per_epoch: 3
 num_train_episodes_per_epoch: 1
 terminate_train_on_done: true
 terminate_test_on_done: true

@@ -242,13 +242,13 @@ def make_traking_plot(runs, traj, dir, impossible=True):
         plt.plot(runs[epoch][0]['obs'][:, 0], runs[epoch][0]['obs'][:, 2], label='GP-MPC %s' % epoch)
     plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
     if impossible:
-        plt.plot([-0.4,-0.4],[0.0, 0.9], 'r', label='Limit')
-        plt.plot([0.4,0.4],[0.0, 0.9], 'r')
-        plt.plot([-0.4,0.4],[0.9, 0.9], 'r')
-        plt.plot([-0.4,0.4],[0.0, 0.0], 'r')
+        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
+        plt.plot([0.55,0.55],[0.1, 1.05], 'r')
+        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
+        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
     plt.legend()
     if impossible:
-        plt.title("Quadrotor Impossible Tracking")
+        plt.title("Quadrotor Tracking")
     else:
         plt.title("Quadrotor Tracking")
     plt.xlabel('X position (m)')

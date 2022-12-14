@@ -64,19 +64,62 @@ def make_traking_plot(runs, traj, dir, impossible=True):
         plt.plot(runs['obs'][epoch][:, 0], runs['obs'][epoch][:, 2], label='GP-MPC %s' % epoch)
     plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
     if impossible:
-        plt.plot([-0.4,-0.4],[0.0, 0.9], 'r', label='Limit')
-        plt.plot([0.4,0.4],[0.0, 0.9], 'r')
-        plt.plot([-0.4,0.4],[0.9, 0.9], 'r')
-        plt.plot([-0.4,0.4],[0.0, 0.0], 'r')
+        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
+        plt.plot([0.55,0.55],[0.1, 1.05], 'r')
+        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
+        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
     plt.legend()
     if impossible:
-        plt.title("Quadrotor Impossible Tracking")
+        plt.title("Quadrotor Tracking")
     else:
         plt.title("Quadrotor Tracking")
     plt.xlabel('X position (m)')
     plt.ylabel('Z position (m)')
     save_str = os.path.join(dir, 'quad_traj.png')
     plt.savefig(save_str)
+
+def avg_rmse_plot(metric_data, save_dir, dt):
+    # How to properly extract training time? Also, what counts as traiing time? Number of trajectories? Or number of
+    # points actually used?
+    avg_rmse = metric_data['average_rmse']
+    steps = metric_data['average_length']
+    std = metric_data['rmse_std']
+    steps[0] = 0.0 # Linear MPC has no training
+
+    times = []
+    for i in range(len(steps)):
+        times.append(steps[i]*dt)
+    fig, ax = plt.subplots()
+    #ax.plot(times, avg_rmse, '-.')
+    ax.errorbar(times, avg_rmse, y_err=std)
+    ax.set_ylabel('XZ RMSE')
+    ax.set_xlabel('Training Times')
+
+    fig.savefig(os.path.join(save_dir, 'test_rmses.png'))
+
+def make_csvs(metric_data, dt, save_dir):
+    avg_rmse = np.array([metric_data['average_rmse']]).T
+    rmse = np.vstack(metric_data['rmse']).T
+    std = np.array([metric_data['rmse_std']]).T
+    steps = np.array([metric_data['average_length']]).T
+
+    steps[0] = 0.0 # Linear MPC has no training
+
+    times = []
+    for i in range(len(steps)):
+        times.append(steps[i]*dt)
+
+    times = np.array([times]).T
+
+    data = np.hstack((times, rmse, avg_rmse, std))
+    headers = 'time'
+    for i in range(len(steps)):
+        headers += f',RMSE {i}'
+    headers += ',Average RMSE'
+    headers += ',RMSE std'
+    np.savetxt(os.path.join(save_dir,'test_data.csv'), data, delimiter=",", header=headers)
+
+
 
 class GPMPCExp(EpochExp):
     def launch_single_train_epoch(self,
@@ -189,3 +232,4 @@ if __name__ == "__main__":
     #traj_data = data['traj_data'].item()
     #ref = traj_data.state[0]
     make_traking_plot(test_data, ref, config.output_dir)
+
