@@ -234,10 +234,16 @@ class EpochExp(BaseExperiment):
 
         """
         if self.all_test_data is None:
-            self.all_test_data = deepcopy(traj_data)
+            self.all_test_data = {}
+            for key in traj_data:
+                self.all_test_data[key] = []
+                self.all_test_data[key].append(deepcopy(traj_data[key]))
         else:
             for key in self.all_test_data:
-                self.all_test_data[key].append(deepcopy(traj_data[key][0]))
+                if len(traj_data[key]) > 1:
+                    self.all_test_data[key].append(deepcopy(traj_data[key]))
+                else:
+                    self.all_test_data[key].append(deepcopy(traj_data[key][0]))
 
     def add_to_metrics(self, metrics):
         """Collect metric data from a single run.

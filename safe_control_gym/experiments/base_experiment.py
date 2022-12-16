@@ -244,8 +244,10 @@ class BaseExperiment:
         # collect & compute all sorts of metrics here
         metrics = {
             'average_length': np.asarray(met.get_episode_lengths()).mean(),
+            'length': np.asarray(met.get_episode_lengths()),
             'average_return': np.asarray(met.get_episode_returns()).mean(),
             'average_rmse': np.asarray(met.get_episode_rmse()).mean(),
+            'rmse': np.asarray(met.get_episode_rmse()),
             'rmse_std': np.asarray(met.get_episode_rmse()).std(),
             'worst_case_rmse_at_0.5': compute_cvar(np.asarray(met.get_episode_rmse()), 0.5, lower_range=False),
             'failure_rate':  np.asarray(met.get_episode_constraint_violations()).mean(),
