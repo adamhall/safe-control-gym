@@ -52,20 +52,26 @@ def gather_training_samples(trajs_data, episode_i, num_samples, rand_generator=N
 
     return x_seq_int, actions_int, x_next_seq_int
 
-def make_traking_plot(runs, traj, dir, impossible=True):
-    num_epochs = len(runs.obs)
+def make_traking_plot(runs, traj, dir, plot_one_test=True, impossible=True):
+    num_epochs = len(runs['state'])
+    if plot_one_test:
+        num_tests = 1
+    else:
+        num_tests = len(runs['state'][0])
     plt.figure()
-    plt.plot(runs['obs'][0][:, 0], runs['obs'][0][:, 2], label='Linear MPC')
-    traj_lin = np.vstack((runs['obs'][0][:, 0], runs['obs'][0][:, 2])).T
-    np.savetxt(os.path.join(dir, 'traj_lin_mpc.csv'), traj_lin, delimiter=',')
+    for test in range(0, num_tests):
+        plt.plot(runs['state'][0][test][:, 0], runs['state'][0][test][:, 2], label=f'Linear MPC {test}')
+        traj_lin = np.vstack((runs['state'][0][test][:, 0], runs['state'][0][test][:, 2])).T
+        np.savetxt(os.path.join(dir, f'traj_lin_mpc_{test}.csv'), traj_lin, delimiter=',')
     for epoch in range(1, num_epochs):
-        traj1 = np.vstack((runs['obs'][epoch][:, 0], runs['obs'][epoch][:, 2])).T
-        np.savetxt(os.path.join(dir, 'traj_%s.csv' % epoch), traj1, delimiter=',')
-        plt.plot(runs['obs'][epoch][:, 0], runs['obs'][epoch][:, 2], label='GP-MPC %s' % epoch)
+        for test in range(num_tests):
+            traj1 = np.vstack((runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2])).T
+            np.savetxt(os.path.join(dir, f'traj_epoch_{epoch}_test_{test}.csv'), traj1, delimiter=',')
+            plt.plot(runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2], label=f'GP-MPC e{epoch} t{test}')
     plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
     if impossible:
         plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
-        plt.plot([0.55,0.55],[0.1, 1.05], 'r')
+        plt.plot([0.55,0.55],[-0.1, 1.05], 'r')
         plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
         plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
     plt.legend()
@@ -86,35 +92,42 @@ def avg_rmse_plot(metric_data, save_dir, dt):
     std = metric_data['rmse_std']
     steps[0] = 0.0 # Linear MPC has no training
 
-    times = []
-    for i in range(len(steps)):
-        times.append(steps[i]*dt)
+    t = 0
+    times = [t]
+    for i in range(1, len(steps)):
+        t += steps[i]*dt
+        times.append(t)
+
+    times = np.array([times]).T
     fig, ax = plt.subplots()
-    #ax.plot(times, avg_rmse, '-.')
-    ax.errorbar(times, avg_rmse, y_err=std)
-    ax.set_ylabel('XZ RMSE')
-    ax.set_xlabel('Training Times')
+    ax.plot(times, avg_rmse, '.')
+    ax.errorbar(times, avg_rmse, yerr=std)
+    ax.set_ylabel('XZ RMSE (m)')
+    ax.set_xlabel('Training Times (s)')
+    ax.set_title('Data Efficiency')
 
     fig.savefig(os.path.join(save_dir, 'test_rmses.png'))
 
 def make_csvs(metric_data, dt, save_dir):
     avg_rmse = np.array([metric_data['average_rmse']]).T
-    rmse = np.vstack(metric_data['rmse']).T
+    rmse = np.vstack(metric_data['rmse'])
     std = np.array([metric_data['rmse_std']]).T
-    steps = np.array([metric_data['average_length']]).T
+    steps = np.array(metric_data['average_length'])
 
     steps[0] = 0.0 # Linear MPC has no training
 
-    times = []
-    for i in range(len(steps)):
-        times.append(steps[i]*dt)
+    t = 0
+    times = [t]
+    for i in range(1, len(steps)):
+        t += steps[i]*dt
+        times.append(t)
 
     times = np.array([times]).T
 
     data = np.hstack((times, rmse, avg_rmse, std))
     headers = 'time'
-    for i in range(len(steps)):
-        headers += f',RMSE {i}'
+    for i in range(rmse.shape[1]):
+        headers += f',Test {i} RMSE'
     headers += ',Average RMSE'
     headers += ',RMSE std'
     np.savetxt(os.path.join(save_dir,'test_data.csv'), data, delimiter=",", header=headers)
@@ -232,4 +245,5 @@ if __name__ == "__main__":
     #traj_data = data['traj_data'].item()
     #ref = traj_data.state[0]
     make_traking_plot(test_data, ref, config.output_dir)
-
+    make_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
+    avg_rmse_plot(metrics, config.output_dir, 1/config.task_config.ctrl_freq)

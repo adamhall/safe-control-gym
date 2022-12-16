@@ -36,7 +36,7 @@ algo_config:
   overwrite_saved_data: false
   prior_info:
     prior_prop: # values multiplied by prior_param_coeff inside gpmpc
-      M: 0.0205 # 75% is 0.02025 100% is 0.027, 150% is 0.0405 300% 0.081,
+      M: 0.01215 # 45% is 0.01215 50% is 0.0135 75% is 0.02025 100% is 0.027, 150% is 0.0405 300% 0.081,
       Iyy: 1.4e-05
   prior_param_coeff: 1.0
   prob: 0.99
@@ -74,9 +74,9 @@ algo_config:
   use_prev_start: true
   warmstart: true
 device: cpu
-num_epochs: 2
+num_epochs: 3
 num_samples: 45
-num_test_episodes_per_epoch: 3
+num_test_episodes_per_epoch: 5
 num_train_episodes_per_epoch: 1
 terminate_train_on_done: true
 terminate_test_on_done: true
