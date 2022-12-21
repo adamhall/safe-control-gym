@@ -42,7 +42,7 @@ class EpochExp(BaseExperiment):
 
         self.train_envs = []
         self.test_envs = []
-        if not(len(train_envs) == n_epochs) or len(train_envs) == 1:
+        if not(len(train_envs) == n_epochs or len(train_envs) == 1):
             raise ValueError('The number of train_envs must match the number of epochs, or be a list of only a single env if only one is used during training.')
         for train_env in train_envs:
             env = None

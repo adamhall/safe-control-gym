@@ -6,6 +6,71 @@ import numpy as np
 from safe_control_gym.utils.utils import mkdirs
 from safe_control_gym.controllers.mpc.mpc_utils import compute_state_rmse
 
+def combine_csvs(basedir, train_seeds, prior_coeffs, num_tests, ftype):
+    for pc in prior_coeffs:
+        combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, pc)
+
+
+def combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, prior_coeff):
+    times = get_times(os.path.join(basedir, f'train_seed_{train_seeds[0]}_coeff_{prior_coeff}'))
+    all_rmse = np.zeros((times.shape[0], num_tests*len(train_seeds)))
+
+    header = 'Training Time'
+    for seed_i, seed in enumerate(train_seeds):
+        for test in range(num_tests):
+            dirname = f'train_seed_{seed}_coeff_{prior_coeff}'
+            fname = os.path.join(basedir, dirname, ftype+'.csv')
+            data = np.genfromtxt(fname, delimiter=',', skip_header=1)
+            rmse = data[:,1:num_tests+1]
+            all_rmse[:, seed_i*num_tests:seed_i*num_tests + num_tests] = rmse
+            header += f',seed_{seed}_test_{test}'
+    means = all_rmse.mean(axis=1)
+    header += ',mean'
+    stds = all_rmse.std(axis=1)
+    header += ',std'
+    all_data = np.hstack((times[:,None], all_rmse, means[:,None], stds[:, None] ))
+    save_name = os.path.join(basedir, f'all_{ftype}_coeff_{prior_coeff}.csv')
+    np.savetxt(save_name, all_data, delimiter=',', header=header)
+
+
+    fig, ax = plt.subplots()
+    ax.plot(times, means, '.')
+    ax.errorbar(times, means, yerr=stds)
+    ax.set_ylabel('Value')
+    ax.set_xlabel('Training Times (s)')
+    ax.set_title(ftype + f'_{prior_coeff}')
+
+    fig.savefig(os.path.join(basedir, f'{ftype}_plot_coeff_{prior_coeff}.png'))
+
+def get_times(path):
+    data = np.genfromtxt(os.path.join(path, 'test_rmse_data.csv'), delimiter=',', skip_header=1)
+    times = data[:,0]
+    return times
+
+def make_viol_csvs(metric_data, dt, save_dir):
+    avg_viol = np.array([metric_data['average_constraint_violation']]).T
+    viol = np.vstack(metric_data['constraint_violation'])
+    std = np.array([metric_data['constraint_violation_std']]).T
+    steps = np.array(metric_data['average_length'])
+
+    steps[0] = 0.0 # Linear MPC has no training
+
+    t = 0
+    times = [t]
+    for i in range(1, len(steps)):
+        t += steps[i]*dt
+        times.append(t)
+
+    times = np.array([times]).T
+
+    data = np.hstack((times, viol, avg_viol, std))
+    headers = 'time'
+    for i in range(viol.shape[1]):
+        headers += f',Test {i} viol'
+    headers += ',Average viol'
+    headers += ',viol std'
+    np.savetxt(os.path.join(save_dir,'test_violation_data.csv'), data, delimiter=",", header=headers)
+
 def get_cost(test_runs):
     num_epochs = len(test_runs)
     num_episodes = len(test_runs[0])

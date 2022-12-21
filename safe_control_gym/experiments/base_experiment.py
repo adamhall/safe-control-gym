@@ -244,14 +244,16 @@ class BaseExperiment:
         # collect & compute all sorts of metrics here
         metrics = {
             'average_length': np.asarray(met.get_episode_lengths()).mean(),
-            'length': np.asarray(met.get_episode_lengths()),
+            'length': met.get_episode_lengths() if len(met.get_episode_lengths()) > 1 else met.get_episode_lengths()[0],
             'average_return': np.asarray(met.get_episode_returns()).mean(),
             'average_rmse': np.asarray(met.get_episode_rmse()).mean(),
-            'rmse': np.asarray(met.get_episode_rmse()),
+            'rmse': np.asarray(met.get_episode_rmse())  if len(met.get_episode_rmse()) > 1 else met.get_episode_rmse()[0],
             'rmse_std': np.asarray(met.get_episode_rmse()).std(),
             'worst_case_rmse_at_0.5': compute_cvar(np.asarray(met.get_episode_rmse()), 0.5, lower_range=False),
             'failure_rate':  np.asarray(met.get_episode_constraint_violations()).mean(),
             'average_constraint_violation': np.asarray(met.get_episode_constraint_violation_steps()).mean(),
+            'constraint_violation_std': np.asarray(met.get_episode_constraint_violation_steps()).std(),
+            'constraint_violation': np.asarray(met.get_episode_constraint_violation_steps()) if len(met.get_episode_constraint_violation_steps()) > 1 else met.get_episode_constraint_violation_steps()[0],
             # others ???
         }
         return metrics

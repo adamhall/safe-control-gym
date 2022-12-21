@@ -4,6 +4,7 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+from copy import deepcopy
 import munch
 
 from safe_control_gym.utils.registration import make
@@ -14,7 +15,7 @@ from safe_control_gym.experiments.epoch_experiment import EpochExp
 # To set relative pathing of experiment imports.
 import sys
 import os.path as path
-from gpmpc_plotting_utils import gather_training_samples
+from gpmpc_plotting_utils import gather_training_samples, make_viol_csvs, combine_csvs
 
 
 def gather_training_samples(trajs_data, episode_i, num_samples, rand_generator=None):
@@ -130,7 +131,8 @@ def make_csvs(metric_data, dt, save_dir):
         headers += f',Test {i} RMSE'
     headers += ',Average RMSE'
     headers += ',RMSE std'
-    np.savetxt(os.path.join(save_dir,'test_data.csv'), data, delimiter=",", header=headers)
+    np.savetxt(os.path.join(save_dir,'test_rmse_data.csv'), data, delimiter=",", header=headers)
+
 
 
 
@@ -205,13 +207,15 @@ def main(config):
     num_samples = config.num_samples
 
     train_envs = []
-    for epoch in range(num_epochs):
-        train_envs.append(env_func(randomized_init=False))
-        train_envs[epoch].action_space.seed(config.seed)
+    train_envs.append(env_func(seed=config.train_seeds[0], randomized_init=False))
+    train_envs[0].action_space.seed(config.train_seeds[0])
+    #for epoch in range(num_epochs):
+    #    train_envs.append(env_func(randomized_init=False))
+    #    train_envs[epoch].action_space.seed(config.seed)
     test_envs = []
     for epoch in range(num_epochs+1):
-        test_envs.append(env_func(randomized_init=False))
-        test_envs[epoch].action_space.seed(config.seed)
+        test_envs.append(env_func(seed=config.test_seeds[epoch], randomized_init=False))
+        test_envs[epoch].action_space.seed(config.test_seeds[epoch])
     exp =GPMPCExp(test_envs,
                   ctrl,
                   train_envs,
@@ -230,20 +234,34 @@ if __name__ == "__main__":
     fac = ConfigFactory()
     fac.add_argument("--plot_dir", type=str, default='', help="Create plot from CSV file.")
     config = fac.merge()
+    # Make parent dir
     set_dir_from_config(config)
     mkdirs(config.output_dir)
+    basedir = deepcopy(config.output_dir)
+    prior_coeff = config.prior_coeff
+    og_mass = 0.027
+    for seed in config.train_seeds:
+        for pc in prior_coeff:
+            config.seed = seed
+            mass = pc*og_mass
+            config.algo_config.prior_info.prior_prop.M = mass
+            config.output_dir = os.path.join(basedir, f"train_seed_{seed}_coeff_{pc}")
+            mkdirs(config.output_dir)
 
-    # Save config.
-    with open(os.path.join(config.output_dir, 'config.yaml'), "w") as file:
-        yaml.dump(munch.unmunchify(config), file, default_flow_style=False)
+            # Save config.
+            with open(os.path.join(config.output_dir, 'config.yaml'), "w") as file:
+                yaml.dump(munch.unmunchify(config), file, default_flow_style=False)
 
-    train_data, test_data, metrics, ref, exp = main(config)
+            train_data, test_data, metrics, ref, exp = main(config)
 
-    #data = np.load(
-    #    '/home/ahall/Documents/UofT/code/ahall_scg/experiments/arxiv/quadrotor_constraint/utils/temp-data/quad_impossible_traj_10hz/seed1337_Aug-24-16-15-24_v0.5.0-303-gcaa86b3/traj_data.npz',
-    #    allow_pickle=True)
-    #traj_data = data['traj_data'].item()
-    #ref = traj_data.state[0]
-    make_traking_plot(test_data, ref, config.output_dir)
-    make_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
-    avg_rmse_plot(metrics, config.output_dir, 1/config.task_config.ctrl_freq)
+            #data = np.load(
+            #    '/home/ahall/Documents/UofT/code/ahall_scg/experiments/arxiv/quadrotor_constraint/utils/temp-data/quad_impossible_traj_10hz/seed1337_Aug-24-16-15-24_v0.5.0-303-gcaa86b3/traj_data.npz',
+            #    allow_pickle=True)
+            #traj_data = data['traj_data'].item()
+            #ref = traj_data.state[0]
+            make_traking_plot(test_data, ref, config.output_dir)
+            make_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
+            avg_rmse_plot(metrics, config.output_dir, 1/config.task_config.ctrl_freq)
+            make_viol_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
+    combine_csvs(basedir, config.train_seeds, config.prior_coeff, config.num_test_episodes_per_epoch, 'test_rmse_data' )
+    combine_csvs(basedir, config.train_seeds, config.prior_coeff, config.num_test_episodes_per_epoch, 'test_violation_data' )
