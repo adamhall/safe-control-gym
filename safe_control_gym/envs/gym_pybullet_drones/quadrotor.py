@@ -320,7 +320,7 @@ class Quadrotor(BaseAviary):
         # Set prior/symbolic info.
         self._setup_symbolic()
 
-    def reset(self):
+    def reset(self, seed=None):
         '''(Re-)initializes the environment to start an episode.
 
         Mandatory to call at least once after __init__().
@@ -330,7 +330,7 @@ class Quadrotor(BaseAviary):
             info (dict): A dictionary with information about the dynamics and constraints symbolic models.
         '''
 
-        super().before_reset()
+        super().before_reset(seed=seed)
         # PyBullet simulation reset.
         super()._reset_simulation()
 

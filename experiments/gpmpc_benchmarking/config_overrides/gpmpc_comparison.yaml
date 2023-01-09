@@ -17,21 +17,21 @@ algo_config:
   - 7
   learing_rate: null
   learning_rate:
-  - 0.01
-  - 0.01
-  - 0.01
-  - 0.01
-  - 0.01
-  - 0.01
+  - 0.003
+  - 0.003
+  - 0.003
+  - 0.003
+  - 0.003
+  - 0.003
   normalize_training_data: false
   online_learning: false
   optimization_iterations:
-  - 2500
-  - 3000
-  - 2500
-  - 3000
-  - 2500
-  - 2500
+  - 7500
+  - 7500
+  - 7500
+  - 7500
+  - 7500
+  - 7500
   output_dir: reslts/temp-data/
   overwrite_saved_data: false
   prior_info:
@@ -59,8 +59,8 @@ algo_config:
   soft_constraints:
     gp_soft_constraints: False #True
     gp_soft_constraints_coeff: 50
-    prior_soft_constraints: False
-    prior_soft_constraints_coeff: 10
+    prior_soft_constraints: false
+    prior_soft_constraints_coeff: 50
   target_mask:
   - 0
   - 1
@@ -74,7 +74,7 @@ algo_config:
   use_prev_start: true
   warmstart: true
 prior_coeff: [0.45, 0.75, 1.00, 1.50, 2.00]
-#prior_coeff: [0.45, 2.00]
+#prior_coeff: [0.5]
 device: cpu
 num_epochs: 3
 num_samples: 45
@@ -82,12 +82,13 @@ num_test_episodes_per_epoch: 5
 num_train_episodes_per_epoch: 1
 terminate_train_on_done: true
 terminate_test_on_done: true
-rand_kernel_selection: true
+rand_kernel_selection: false #true
 output_dir: temp-data
 restore: null
 seed: 42
 train_seeds: [1337, 2306, 1912, 42, 4007]
-test_seeds: [204, 667, 202, 2127]
+#train_seeds: [1337, 2306, 42]
+test_seeds: [204, 667, 202, 2127, 6]
 tag: gpmpc-comparison
 task_config:
   constraints:

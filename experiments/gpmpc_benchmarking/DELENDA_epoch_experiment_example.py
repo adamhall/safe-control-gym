@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
 from copy import deepcopy
+from math import ceil
 import munch
 
 from safe_control_gym.utils.registration import make
@@ -40,7 +41,9 @@ def gather_training_samples(trajs_data, episode_i, num_samples, rand_generator=N
         if rand_generator is not None:
             rand_inds_int = rand_generator.choice(n-1, num_samples_per_episode, replace=False)
         else:
-            rand_inds_int = np.arange(num_samples_per_episode)
+            step = ceil(n/num_samples_per_episode)
+            rand_inds_int = np.arange(0, n, step)
+            #rand_inds_int = np.arange(num_samples_per_episode)
     else:
         rand_inds_int = np.arange(n-1)
     next_inds_int = rand_inds_int + 1
@@ -144,6 +147,7 @@ class GPMPCExp(EpochExp):
                                   episode_i,
                                   n_steps,
                                   log_freq,
+                                  seeds=None,
                                   **kwargs):
         """Defined per controller?"""
         # Training Data Collection
@@ -151,7 +155,8 @@ class GPMPCExp(EpochExp):
                                        env=env,
                                        n_episodes=n_episodes,
                                        n_steps=n_steps,
-                                       log_freq=log_freq)
+                                       log_freq=log_freq,
+                                       seeds=seeds)
         self.add_to_all_train_data(traj_data)
         # Parsing of training Data.
         train_inputs, train_outputs = self.preprocess_training_data(traj_data, episode_i, **kwargs)
@@ -213,9 +218,8 @@ def main(config):
     #    train_envs.append(env_func(randomized_init=False))
     #    train_envs[epoch].action_space.seed(config.seed)
     test_envs = []
-    for epoch in range(num_epochs+1):
-        test_envs.append(env_func(seed=config.test_seeds[epoch], randomized_init=False))
-        test_envs[epoch].action_space.seed(config.test_seeds[epoch])
+    test_envs.append(env_func(seed=config.test_seeds[0], randomized_init=False))
+    test_envs[0].action_space.seed(config.test_seeds[0])
     exp =GPMPCExp(test_envs,
                   ctrl,
                   train_envs,
@@ -224,10 +228,12 @@ def main(config):
                   num_test_episodes_per_epoch,
                   config.output_dir,
                   save_train_trajs=True,
-                  save_test_trajs=True)
+                  save_test_trajs=True,
+                  test_seeds=config.test_seeds)
     ref = exp.env.X_GOAL
     metrics, train_data, test_data, = exp.launch_training(num_samples=num_samples,
                                                           rand_kernel_selection=config.rand_kernel_selection)
+    np.savez(os.path.join(config.output_dir, 'data.npz'), metrics=metrics, train_data=train_data, test_data=test_data, allow_pickle=True)
     return train_data, test_data, metrics, ref, exp
 
 if __name__ == "__main__":

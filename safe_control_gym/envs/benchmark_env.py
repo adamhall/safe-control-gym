@@ -347,8 +347,11 @@ class BenchmarkEnv(gym.Env, ABC):
         '''
         raise NotImplementedError
 
-    def before_reset(self):
-        '''Pre-processing before calling `.reset()`. '''
+    def before_reset(self, seed=None):
+        '''Pre-processing before calling `.reset()`.
+        Args:
+            seed (int): Number to reset the env with a new random seed.
+        '''
         # Housekeeping variables.
         self.initial_reset = True
         self.pyb_step_counter = 0
@@ -362,6 +365,8 @@ class BenchmarkEnv(gym.Env, ABC):
             self.disturbances[mode].reset(self)
         if self.adversary_disturbance is not None:
             self.adv_action = None
+        if seed is not None:
+            self.seed(seed)
 
     def after_reset(self, obs, info):
         '''Post-processing after calling `.reset()`.

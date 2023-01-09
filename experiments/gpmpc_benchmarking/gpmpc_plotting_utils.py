@@ -16,6 +16,8 @@ def combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, prior_coe
     all_rmse = np.zeros((times.shape[0], num_tests*len(train_seeds)))
 
     header = 'Training Time'
+    header += ',mean'
+    header += ',std'
     for seed_i, seed in enumerate(train_seeds):
         for test in range(num_tests):
             dirname = f'train_seed_{seed}_coeff_{prior_coeff}'
@@ -25,10 +27,8 @@ def combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, prior_coe
             all_rmse[:, seed_i*num_tests:seed_i*num_tests + num_tests] = rmse
             header += f',seed_{seed}_test_{test}'
     means = all_rmse.mean(axis=1)
-    header += ',mean'
     stds = all_rmse.std(axis=1)
-    header += ',std'
-    all_data = np.hstack((times[:,None], all_rmse, means[:,None], stds[:, None] ))
+    all_data = np.hstack((times[:,None], means[:,None], stds[:, None],  all_rmse ))
     save_name = os.path.join(basedir, f'all_{ftype}_coeff_{prior_coeff}.csv')
     np.savetxt(save_name, all_data, delimiter=',', header=header)
 
