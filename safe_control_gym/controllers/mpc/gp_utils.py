@@ -2,6 +2,8 @@
 
 """
 import os.path
+import sys
+
 import numpy as np
 import gpytorch
 import torch
@@ -253,30 +255,51 @@ class GaussianProcessCollection:
         mkdirs(dir)
         gp_K_plus_noise_inv_list = []
         gp_K_plus_noise_list = []
-        for gp_ind, gp in enumerate(self.gp_list):
-            lr = learning_rate[self.target_mask[gp_ind]]
-            n_t = n_train[self.target_mask[gp_ind]]
-            print("#########################################")
-            print("#      Training GP dimension %s         #" % self.target_mask[gp_ind])
-            print("#########################################")
-            print("Train iterations: %s" % n_t)
-            print("Learning Rate: %s" % lr)
-            gp.train(train_x_raw,
-                     train_y_raw[:,self.target_mask[gp_ind]],
-                     test_x_raw,
-                     test_y_raw[:, self.target_mask[gp_ind]],
-                     n_train=n_t,
-                     learning_rate=lr,
-                     gpu=gpu,
-                     fname=os.path.join(dir, 'best_model_%s.pth' % self.target_mask[gp_ind]))
-            self.model_paths.append(dir)
-            gp_K_plus_noise_list.append(gp.model.K_plus_noise)
-            gp_K_plus_noise_inv_list.append(gp.model.K_plus_noise_inv)
+        original_stdout = sys.stdout
+        print_to_fname = os.path.join(dir, 'trianing_output_epoch0.txt')
+        print_to_fname, epoch_num = assign_fname(print_to_fname)
+        with open(print_to_fname,'w') as print_to_file:
+            sys.stdout = print_to_file
+            for gp_ind, gp in enumerate(self.gp_list):
+                lr = learning_rate[self.target_mask[gp_ind]]
+                n_t = n_train[self.target_mask[gp_ind]]
+                print("#########################################")
+                print("#      Training GP dimension %s         #" % self.target_mask[gp_ind])
+                print("#########################################")
+                print("Train iterations: %s" % n_t)
+                print("Learning Rate: %s" % lr)
+                gp.train(train_x_raw,
+                         train_y_raw[:,self.target_mask[gp_ind]],
+                         test_x_raw,
+                         test_y_raw[:, self.target_mask[gp_ind]],
+                         n_train=n_t,
+                         learning_rate=lr,
+                         gpu=gpu,
+                         fname=os.path.join(dir, 'best_model_%s.pth' % self.target_mask[gp_ind]))
+                self.model_paths.append(dir)
+                gp_K_plus_noise_list.append(gp.model.K_plus_noise)
+                gp_K_plus_noise_inv_list.append(gp.model.K_plus_noise_inv)
+            sys.stdout = original_stdout
         gp_K_plus_noise = torch.stack(gp_K_plus_noise_list)
         gp_K_plus_noise_inv = torch.stack(gp_K_plus_noise_inv_list)
         self.K_plus_noise = gp_K_plus_noise
         self.K_plus_noise_inv = gp_K_plus_noise_inv
         self.casadi_predict = self.make_casadi_predict_func()
+        hp_basedir = os.path.join(dir, f'hyperparams_epoch{epoch_num}')
+        os.mkdir(hp_basedir)
+        self.record_hyperparameters(hp_basedir)
+
+    def record_hyperparameters(self, basedir):
+        ls_fname = os.path.join(basedir,'lengthscales.txt')
+        os_fname = os.path.join(basedir, 'outputscales.txt')
+        noise_fname = os.path.join(basedir, 'noise.txt')
+        lengthscale, outputscale, noise, K_plus_noise = self.get_hyperparameters(as_numpy=True)
+        np.savetxt(ls_fname, lengthscale, delimiter=',')
+        np.savetxt(os_fname, outputscale, delimiter=',')
+        np.savetxt(noise_fname, noise, delimiter=',')
+        for i in range(K_plus_noise.shape[0]):
+            k_fname = os.path.join(basedir, f'k_plus_noise_{i}.txt')
+            np.savetxt(k_fname, K_plus_noise[i,:,:], delimiter=',')
 
 
     def predict(self,
@@ -425,6 +448,16 @@ class GaussianProcessCollection:
         # Efficient inversion is performed VIA inv_matmul on the laze tensor with Identity.
         non_lazy_tensors = [k.inv_matmul(torch.eye(num_of_points).double()) for k in k_list]
         return torch.stack(non_lazy_tensors)
+
+def assign_fname(full_path):
+    f_num = 0
+    path_stem, _ = full_path.split('_epoch0.txt')
+    while os.path.exists(full_path) and f_num < 10:
+        f_num += 1
+        full_path = path_stem + f'_epoch{f_num}.txt'
+    if f_num == 10:
+        raise ValueError("Are there really 10 training epochs?")
+    return full_path, f_num
 
 class GaussianProcess:
     """Gaussian Process decorator for gpytorch.

@@ -73,8 +73,8 @@ algo_config:
   use_gpu: false
   use_prev_start: true
   warmstart: true
-prior_coeff: [0.45, 0.75, 1.00, 1.50, 2.00]
-#prior_coeff: [0.5]
+#prior_coeff: [0.45, 0.75, 1.00, 1.50, 2.00]
+prior_coeff: [0.45, 0.5]
 device: cpu
 num_epochs: 3
 num_samples: 45
@@ -87,8 +87,9 @@ output_dir: temp-data
 restore: null
 seed: 42
 train_seeds: [1337, 2306, 1912, 42, 4007]
-#train_seeds: [1337, 2306, 42]
+#train_seeds: [1337, 2306]
 test_seeds: [204, 667, 202, 2127, 6]
+#test_seeds: [204, 667]
 tag: gpmpc-comparison
 task_config:
   constraints:

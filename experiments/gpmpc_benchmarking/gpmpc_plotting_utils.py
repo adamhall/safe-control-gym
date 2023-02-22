@@ -11,6 +11,38 @@ def combine_csvs(basedir, train_seeds, prior_coeffs, num_tests, ftype):
         combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, pc)
 
 
+def make_traking_plot(runs, traj, dir, plot_one_test=True, impossible=True):
+    num_epochs = len(runs['state'])
+    if plot_one_test:
+        num_tests = 1
+    else:
+        num_tests = len(runs['state'][0])
+    plt.figure()
+    for test in range(0, num_tests):
+        plt.plot(runs['state'][0][test][:, 0], runs['state'][0][test][:, 2], label=f'Linear MPC {test}')
+        traj_lin = np.vstack((runs['state'][0][test][:, 0], runs['state'][0][test][:, 2])).T
+        np.savetxt(os.path.join(dir, f'traj_lin_mpc_{test}.csv'), traj_lin, delimiter=',')
+    for epoch in range(1, num_epochs):
+        for test in range(num_tests):
+            traj1 = np.vstack((runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2])).T
+            np.savetxt(os.path.join(dir, f'traj_epoch_{epoch}_test_{test}.csv'), traj1, delimiter=',')
+            plt.plot(runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2], label=f'GP-MPC e{epoch} t{test}')
+    plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
+    if impossible:
+        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
+        plt.plot([0.55,0.55],[-0.1, 1.05], 'r')
+        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
+        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
+    plt.legend()
+    if impossible:
+        plt.title("Quadrotor Tracking")
+    else:
+        plt.title("Quadrotor Tracking")
+    plt.xlabel('X position (m)')
+    plt.ylabel('Z position (m)')
+    save_str = os.path.join(dir, 'quad_traj.png')
+    plt.savefig(save_str)
+
 def combine_csvs_for_single_pc(basedir, train_seeds, num_tests, ftype, prior_coeff):
     times = get_times(os.path.join(basedir, f'train_seed_{train_seeds[0]}_coeff_{prior_coeff}'))
     all_rmse = np.zeros((times.shape[0], num_tests*len(train_seeds)))
@@ -295,31 +327,31 @@ def gather_training_samples_from_all_data(all_runs, num_samples):
     return x_seq_int, actions_int, x_next_seq_int
 
 
-def make_traking_plot(runs, traj, dir, impossible=True):
-    num_epochs = len(runs.keys())
-    plt.figure()
-    plt.plot(runs[0][0]['obs'][:, 0], runs[0][0]['obs'][:, 2], label='Linear MPC')
-    traj_lin = np.vstack((runs[0][0]['obs'][:, 0], runs[0][0]['obs'][:, 2])).T
-    np.savetxt(os.path.join(dir, 'traj_lin_mpc.csv'), traj_lin, delimiter=',')
-    for epoch in range(1, num_epochs):
-        traj1 = np.vstack((runs[epoch][0]['obs'][:, 0], runs[epoch][0]['obs'][:, 2])).T
-        np.savetxt(os.path.join(dir, 'traj_%s.csv' % epoch), traj1, delimiter=',')
-        plt.plot(runs[epoch][0]['obs'][:, 0], runs[epoch][0]['obs'][:, 2], label='GP-MPC %s' % epoch)
-    plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
-    if impossible:
-        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
-        plt.plot([0.55,0.55],[0.1, 1.05], 'r')
-        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
-        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
-    plt.legend()
-    if impossible:
-        plt.title("Quadrotor Tracking")
-    else:
-        plt.title("Quadrotor Tracking")
-    plt.xlabel('X position (m)')
-    plt.ylabel('Z position (m)')
-    save_str = os.path.join(dir, 'quad_traj.png')
-    plt.savefig(save_str)
+#def make_traking_plot(runs, traj, dir, impossible=True):
+#    num_epochs = len(runs.keys())
+#    plt.figure()
+#    plt.plot(runs[0][0]['obs'][:, 0], runs[0][0]['obs'][:, 2], label='Linear MPC')
+#    traj_lin = np.vstack((runs[0][0]['obs'][:, 0], runs[0][0]['obs'][:, 2])).T
+#    np.savetxt(os.path.join(dir, 'traj_lin_mpc.csv'), traj_lin, delimiter=',')
+#    for epoch in range(1, num_epochs):
+#        traj1 = np.vstack((runs[epoch][0]['obs'][:, 0], runs[epoch][0]['obs'][:, 2])).T
+#        np.savetxt(os.path.join(dir, 'traj_%s.csv' % epoch), traj1, delimiter=',')
+#        plt.plot(runs[epoch][0]['obs'][:, 0], runs[epoch][0]['obs'][:, 2], label='GP-MPC %s' % epoch)
+#    plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
+#    if impossible:
+#        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
+#        plt.plot([0.55,0.55],[0.1, 1.05], 'r')
+#        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
+#        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
+#    plt.legend()
+#    if impossible:
+#        plt.title("Quadrotor Tracking")
+#    else:
+#        plt.title("Quadrotor Tracking")
+#    plt.xlabel('X position (m)')
+#    plt.ylabel('Z position (m)')
+#    save_str = os.path.join(dir, 'quad_traj.png')
+#    plt.savefig(save_str)
 
 def get_constraint_violations(test_runs,
                               train_runs):

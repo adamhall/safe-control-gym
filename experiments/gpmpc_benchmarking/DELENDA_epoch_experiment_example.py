@@ -16,7 +16,7 @@ from safe_control_gym.experiments.epoch_experiment import EpochExp
 # To set relative pathing of experiment imports.
 import sys
 import os.path as path
-from gpmpc_plotting_utils import gather_training_samples, make_viol_csvs, combine_csvs
+from gpmpc_plotting_utils import gather_training_samples, make_viol_csvs, combine_csvs, make_traking_plot
 
 
 def gather_training_samples(trajs_data, episode_i, num_samples, rand_generator=None):
@@ -56,37 +56,7 @@ def gather_training_samples(trajs_data, episode_i, num_samples, rand_generator=N
 
     return x_seq_int, actions_int, x_next_seq_int
 
-def make_traking_plot(runs, traj, dir, plot_one_test=True, impossible=True):
-    num_epochs = len(runs['state'])
-    if plot_one_test:
-        num_tests = 1
-    else:
-        num_tests = len(runs['state'][0])
-    plt.figure()
-    for test in range(0, num_tests):
-        plt.plot(runs['state'][0][test][:, 0], runs['state'][0][test][:, 2], label=f'Linear MPC {test}')
-        traj_lin = np.vstack((runs['state'][0][test][:, 0], runs['state'][0][test][:, 2])).T
-        np.savetxt(os.path.join(dir, f'traj_lin_mpc_{test}.csv'), traj_lin, delimiter=',')
-    for epoch in range(1, num_epochs):
-        for test in range(num_tests):
-            traj1 = np.vstack((runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2])).T
-            np.savetxt(os.path.join(dir, f'traj_epoch_{epoch}_test_{test}.csv'), traj1, delimiter=',')
-            plt.plot(runs['state'][epoch][test][:, 0], runs['state'][epoch][test][:, 2], label=f'GP-MPC e{epoch} t{test}')
-    plt.plot(traj[:,0], traj[:,2], 'k',label='Reference')
-    if impossible:
-        plt.plot([-0.55,-0.55],[-0.1, 1.05], 'r', label='Limit')
-        plt.plot([0.55,0.55],[-0.1, 1.05], 'r')
-        plt.plot([-0.55,0.55],[1.05, 1.05], 'r')
-        plt.plot([-0.55,0.55],[-0.1, -0.1], 'r')
-    plt.legend()
-    if impossible:
-        plt.title("Quadrotor Tracking")
-    else:
-        plt.title("Quadrotor Tracking")
-    plt.xlabel('X position (m)')
-    plt.ylabel('Z position (m)')
-    save_str = os.path.join(dir, 'quad_traj.png')
-    plt.savefig(save_str)
+
 
 def avg_rmse_plot(metric_data, save_dir, dt):
     # How to properly extract training time? Also, what counts as traiing time? Number of trajectories? Or number of
@@ -233,7 +203,7 @@ def main(config):
     ref = exp.env.X_GOAL
     metrics, train_data, test_data, = exp.launch_training(num_samples=num_samples,
                                                           rand_kernel_selection=config.rand_kernel_selection)
-    np.savez(os.path.join(config.output_dir, 'data.npz'), metrics=metrics, train_data=train_data, test_data=test_data, allow_pickle=True)
+    np.savez(os.path.join(config.output_dir, 'data.npz'), metrics=metrics, train_data=train_data, test_data=test_data, ref=ref, allow_pickle=True)
     return train_data, test_data, metrics, ref, exp
 
 if __name__ == "__main__":
@@ -265,7 +235,7 @@ if __name__ == "__main__":
             #    allow_pickle=True)
             #traj_data = data['traj_data'].item()
             #ref = traj_data.state[0]
-            make_traking_plot(test_data, ref, config.output_dir)
+            make_traking_plot(test_data, ref, config.output_dir, plot_one_test=False)
             make_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
             avg_rmse_plot(metrics, config.output_dir, 1/config.task_config.ctrl_freq)
             make_viol_csvs(metrics, 1/config.task_config.ctrl_freq, config.output_dir)
